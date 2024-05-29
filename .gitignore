@@ -1,3 +1,5 @@
-models/
+models/*
 calibration/
 __pycache__/
+ssl/*
+.env
