@@ -45,10 +45,15 @@ class Calibrate:
         count = 0
         while count < self.max_chessboards:
             imgL, imgR = cams.get_frames()
+            print('looped')
+            cv2.imshow('right image', imgR)
+            cv2.imshow('left image', imgL)
+
             if self.add_corners(imgL, imgR):
                 count += 1
                 print(f"Captured {count}/{self.max_chessboards} chessboards.")
-
+                cv2.imshow('img', imgL)
+            cv2.waitKey(0)
         img_shape = imgL.shape[1::-1]
         return self.compute(img_shape)
 
@@ -60,7 +65,7 @@ class Calibrate:
 # Example usage
 chessboard_size = (7, 7)  # Number of inside corners in the chessboard pattern (columns, rows)
 square_size = 2.9# Size of a square in defined unit (meters or centimeters)
-max_chessboards = 10  # chessboards to capture
+max_chessboards = 12  # chessboards to capture
 
 calibration = Calibrate(chessboard_size, square_size, max_chessboards)
 

@@ -186,7 +186,8 @@ if __name__ == "__main__":
         img1_rectified = cv2.remap(frameL, map1x, map1y, cv2.INTER_LINEAR)
         img2_rectified = cv2.remap(frameR, map2x, map2y, cv2.INTER_LINEAR)
 
-        cv2.imshow('img1',img1_rectified)
+        cv2.imshow('img1', img1_rectified)
+        cv2.imshow('img2', img2_rectified)
 
         """
         boxesL, boxesR = cams.get_faces(img1_rectified, img2_rectified)
@@ -206,6 +207,7 @@ if __name__ == "__main__":
             frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
         """
         
+        """
         # ------------------------------------------------------------
         # CALCULATE DISPARITY (DEPTH MAP)
         # Adapted from: https://github.com/opencv/opencv/blob/master/samples/python/stereo_match.py
@@ -259,6 +261,7 @@ if __name__ == "__main__":
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
         plt.show()
+        """
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
