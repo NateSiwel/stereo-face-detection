@@ -156,11 +156,12 @@ def convert_and_trim_bb(image, rect):
 	return (startX, startY, w, h)
 
 if __name__ == "__main__":
-    cams = Extract()
-    client = ClientClass()
-
     with open('calibration/cams.pkl', 'rb') as file:
         cam = pickle.load(file)
+
+    cams = Extract()
+    client = ClientClass(cam)
+ 
 
     while True:
 
@@ -169,7 +170,7 @@ if __name__ == "__main__":
         grayL, grayR  = cv2.cvtColor(frameL, cv2.COLOR_RGB2GRAY), cv2.cvtColor(frameR, cv2.COLOR_RGB2GRAY)
         # apply rectification 
 
-        res = client.authenticate(frameL, frameR, cam)
+        res = client.authenticate(frameL, frameR)
         print(res)
 
         """
