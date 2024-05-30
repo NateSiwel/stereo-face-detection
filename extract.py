@@ -159,9 +159,6 @@ if __name__ == "__main__":
     cams = Extract()
     client = ClientClass()
 
-    frameL, frameR = cams.get_frames()
-    h, w = frameL.shape[:2]
-
     with open('calibration/cams.pkl', 'rb') as file:
         cam = pickle.load(file)
 
@@ -172,7 +169,7 @@ if __name__ == "__main__":
         grayL, grayR  = cv2.cvtColor(frameL, cv2.COLOR_RGB2GRAY), cv2.cvtColor(frameR, cv2.COLOR_RGB2GRAY)
         # apply rectification 
 
-        res = client.rectify_frames(frameL, frameR, cam)
+        res = client.authenticate(frameL, frameR, cam)
         print(res)
 
         """

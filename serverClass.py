@@ -2,10 +2,24 @@ import time
 import numpy as np
 import cv2
 import dlib
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 class ServerClass ():
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector()
+
+    def authenticate(self,imgL,imgR,cam):
+        img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
+        disparity_map = self.get_disparity(img1_rectified, img2_rectified)
+
+        plt.imshow(disparity, cmap='gray')
+        plt.title('Disparity Map')
+        plt.colorbar()
+        plt.show()
+
+        return True
 
     def rectify_frames(self,frameL,frameR,cam):
         mtx1 = cam['mtxL']
@@ -96,6 +110,8 @@ class ServerClass ():
         disparity_SGBM = cv2.normalize(disparity_SGBM, disparity_SGBM, alpha=255,
                                       beta=0, norm_type=cv2.NORM_MINMAX)
         disparity = np.uint8(disparity_SGBM)
+
+        return disparity
     
     def destroy(self):
         self.camL.stop()

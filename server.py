@@ -29,8 +29,8 @@ def list_to_numpy(data):
     return data
 
 server = ServerClass()
-@app.route('/upload', methods=['POST'])
-def upload_image():
+@app.route('/authenticate', methods=['POST'])
+def authenticate():
     if request.headers.get('API-Key') != API_KEY:
         return make_response(jsonify({'error': 'Unauthorized'}), 401)
     data = request.json
@@ -45,9 +45,13 @@ def upload_image():
     cam = list_to_numpy(cam)
 
     if imgL is not None and imgR is not None and cam is not None:
-        print('rectifying image')
-        rectifiedL,rectifiedR=server.rectify_frames(imgL,imgR,cam=cam)
+        print('Rectifying Image')
+        #server.authenticate()
+        res = server.authenticate(imgL,imgR,cam=cam)
+        print(res)
+
         return make_response(jsonify({'message':'Success!'}), 200)
+
     return make_response(jsonify({'error': 'Invalid Request'}), 400)
 
 if __name__ == '__main__':
