@@ -15,6 +15,8 @@ class ServerClass ():
         R = cam['R']
         T = cam['T']
 
+        h,w = frameL.shape[:2] 
+
         R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(mtx1, dist1, mtx2, dist2, (w, h), R, T)
 
         # undistortion and rectification maps
