@@ -172,13 +172,16 @@ if __name__ == "__main__":
         grayL, grayR  = cv2.cvtColor(frameL, cv2.COLOR_RGB2GRAY), cv2.cvtColor(frameR, cv2.COLOR_RGB2GRAY)
         # apply rectification 
 
-        img1_rectified, img2_rectified = client.rectify_frames(frameL, frameR)
+        res = client.rectify_frames(frameL, frameR, cam)
+        print(res)
 
+        """
         img1_rectified = cv2.remap(frameL, map1x, map1y, cv2.INTER_LINEAR)
         img2_rectified = cv2.remap(frameR, map2x, map2y, cv2.INTER_LINEAR)
 
         cv2.imshow('img1', img1_rectified)
         cv2.imshow('img2', img2_rectified)
+        """
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
