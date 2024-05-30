@@ -10,7 +10,7 @@ def upload_image():
     print('request recieved')
     if request.headers.get('API-Key') != API_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
-    if request.headers.get('imgL') and request.headers.get('imgR'):
+    if request.body.get('imgL') and request.body.get('imgR'):
         imgL, imgR = request.headers.get('imgL'), request.headers.get('imgR')
         facesL,facesR=server.get_faces(imgL,imgR)
         print(facesL)
