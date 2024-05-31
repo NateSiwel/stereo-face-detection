@@ -11,10 +11,11 @@ class ServerClass ():
         self.detector = dlib.get_frontal_face_detector()
 
     def authenticate(self,imgL,imgR,cam):
+        self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
         disparity_map = self.get_disparity(img1_rectified, img2_rectified)
 
-        plt.imshow(disparity, cmap='gray')
+        plt.imshow(disparity_map, cmap='gray')
         plt.title('Disparity Map')
         plt.colorbar()
         plt.show()
@@ -29,13 +30,11 @@ class ServerClass ():
         R = cam['R']
         T = cam['T']
 
-        h,w = frameL.shape[:2] 
-
-        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(mtx1, dist1, mtx2, dist2, (w, h), R, T)
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(mtx1, dist1, mtx2, dist2, (self.w, self.h), R, T)
 
         # undistortion and rectification maps
-        self.map1x, self.map1y = cv2.initUndistortRectifyMap(mtx1, dist1, R1, P1, (w, h), cv2.CV_32FC1)
-        self.map2x, self.map2y = cv2.initUndistortRectifyMap(mtx2, dist2, R2, P2, (w, h), cv2.CV_32FC1)
+        self.map1x, self.map1y = cv2.initUndistortRectifyMap(mtx1, dist1, R1, P1, (self.w, self.h), cv2.CV_32FC1)
+        self.map2x, self.map2y = cv2.initUndistortRectifyMap(mtx2, dist2, R2, P2, (self.w, self.h), cv2.CV_32FC1)
 
 
         img1_rectified = cv2.remap(frameL, self.map1x, self.map1y, cv2.INTER_LINEAR)
@@ -47,9 +46,10 @@ class ServerClass ():
         self.rectsL = self.detector(frameL)
         self.rectsR = self.detector(frameR)
 
-        boxesL = [convert_and_trim_bb(self.frameL, r) for r in self.rectsL]
-        boxesR = [convert_and_trim_bb(self.frameR, r) for r in self.rectsR]
+        boxesL = [convert_and_trim_bb(frameL, r) for r in self.rectsL]
+        boxesR = [convert_and_trim_bb(frameR, r) for r in self.rectsR]
 
+        """
         # Process detected faces from each cam
         #Grab face images if necessary
         facesL = []
@@ -62,10 +62,11 @@ class ServerClass ():
             face = frameR[y:y+h, x:x+w]
             facesR.append(face)
             frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
+        """
 
         return (boxesL, boxesR)
 
-    def get_disparity(self,frameL,frameR):
+    def get_disparity(self,img1_rectified,img2_rectified):
         # ------------------------------------------------------------
         # CALCULATE DISPARITY (DEPTH MAP)
         # Adapted from: https://github.com/opencv/opencv/blob/master/samples/python/stereo_match.py

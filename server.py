@@ -31,6 +31,7 @@ def list_to_numpy(data):
 server = ServerClass()
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
+    print('request received')
     if request.headers.get('API-Key') != API_KEY:
         return make_response(jsonify({'error': 'Unauthorized'}), 401)
     data = request.json
