@@ -6,6 +6,25 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+def convert_and_trim_bb(image, rect):
+	# extract the starting and ending (x, y)-coordinates of the
+	# bounding box
+	startX = rect.left()
+	startY = rect.top()
+	endX = rect.right()
+	endY = rect.bottom()
+	# ensure the bounding box coordinates fall within the spatial
+	# dimensions of the image
+	startX = max(0, startX)
+	startY = max(0, startY)
+	endX = min(endX, image.shape[1])
+	endY = min(endY, image.shape[0])
+	# compute the width and height of the bounding box
+	w = endX - startX
+	h = endY - startY
+	# return our bounding box coordinates
+	return (startX, startY, w, h)
+
 class ServerClass ():
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector()
@@ -15,10 +34,18 @@ class ServerClass ():
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
         disparity_map = self.get_disparity(img1_rectified, img2_rectified)
 
+        #returns imgs
+        facesL, facesR = self.get_faces(img1_rectified, img2_rectified) 
+        
+        #grab embedding 
+    
+
+        """
         plt.imshow(disparity_map, cmap='gray')
         plt.title('Disparity Map')
         plt.colorbar()
         plt.show()
+        """
 
         return True
 
@@ -36,35 +63,32 @@ class ServerClass ():
         self.map1x, self.map1y = cv2.initUndistortRectifyMap(mtx1, dist1, R1, P1, (self.w, self.h), cv2.CV_32FC1)
         self.map2x, self.map2y = cv2.initUndistortRectifyMap(mtx2, dist2, R2, P2, (self.w, self.h), cv2.CV_32FC1)
 
-
         img1_rectified = cv2.remap(frameL, self.map1x, self.map1y, cv2.INTER_LINEAR)
         img2_rectified = cv2.remap(frameR, self.map2x, self.map2y, cv2.INTER_LINEAR)
 
         return img1_rectified,img2_rectified
 
-    def get_faces(self, frameL=None, frameR=None):
+    def get_faces(self, frameL, frameR):
         self.rectsL = self.detector(frameL)
         self.rectsR = self.detector(frameR)
 
         boxesL = [convert_and_trim_bb(frameL, r) for r in self.rectsL]
         boxesR = [convert_and_trim_bb(frameR, r) for r in self.rectsR]
 
-        """
         # Process detected faces from each cam
         #Grab face images if necessary
         facesL = []
         for (x, y, w, h) in boxesL:
             face = frameL[y:y+h, x:x+w]
             facesL.append(face)
-            frameL = cv2.rectangle(img1_rectified, (x,y), (x+w,y+h), (0,255,0))
+            #frameL = cv2.rectangle(img1_rectified, (x,y), (x+w,y+h), (0,255,0))
         facesR = []
         for (x, y, w, h) in boxesR:
             face = frameR[y:y+h, x:x+w]
             facesR.append(face)
-            frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
-        """
+            #frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
 
-        return (boxesL, boxesR)
+        return (facesL, facesR)
 
     def get_disparity(self,img1_rectified,img2_rectified):
         # ------------------------------------------------------------
@@ -113,7 +137,3 @@ class ServerClass ():
         disparity = np.uint8(disparity_SGBM)
 
         return disparity
-    
-    def destroy(self):
-        self.camL.stop()
-        self.camR.stop()
