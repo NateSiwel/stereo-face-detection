@@ -38,25 +38,37 @@ class ServerClass ():
         #returns imgs
         ret = self.get_faces(img1_rectified, img2_rectified) 
 
-        encodingsL = []
-        encodingsR = []
         if ret is True:
-            for face_location in self.rectsL:
-                encoding = face_recognition.face_encodings(imgL, face_location)
-                encodingsL.append(encoding)
-            for face_location in self.rectsR:
-                encoding = face_recognition.face_encodings(imgR, face_location)
-                encodingsR.append(encoding)
+
+            print(self.rectsL)
+            encodingsL = face_recognition.face_encodings(img1_rectified, self.rectsL)
+
+            encodingsR = face_recognition.face_encodings(img2_rectified, self.rectsR)
 
             # encodingsL and encodingR represent list of unorganized encodingsL
             # if there are multiple faces - we don't yet know how faces translate across camL/camR
             # We should be able to fetch a static pixel translation between cams based on matrix
 
             # We'll need to have [(person1L, person1R), (person2L, person2R)]
-            print(encodingsL, encodingsR)
 
             for encoding in encodingsL:
                 ret = face_recognition.compare_faces([user_embedding], encoding)
+
+            matches = []
+            for idxL, encL in enumerate(encodingsL):
+                distances = face_recognition.face_distance(encodingsR, encL[0])
+                min_distance = min(distances)
+                idxR = distances.tolist().index(min_distance)
+                
+                if min_distance < 0.6:
+                    matches.append((idxL, idxR))
+
+            # matched_pairs = [(personEnc1L, personEnc1R), (personEnc2L, personEnc2R)]
+            matched_pairs = [(encodingsL[i], encodingsR[j]) for i, j in matches]
+
+            print(len(matched_pairs))
+
+            return True
     
         """
         plt.imshow(disparity_map, cmap='gray')
@@ -65,7 +77,7 @@ class ServerClass ():
         plt.show()
         """
 
-        return True
+        return False 
 
     def rectify_frames(self,frameL,frameR,cam):
         mtx1 = cam['mtxL']
