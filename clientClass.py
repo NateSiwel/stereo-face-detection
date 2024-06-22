@@ -34,10 +34,10 @@ class ClientClass():
     def authenticate(self, imgL, imgR):
         self.imgL, self.imgR = imgL, imgR
         headers = {'API-Key': api_key, "Content-Type": 'application/json'}
-        imgL = cv2.cvtColor(imgL, cv2.COLOR_RGB2GRAY)
+        #imgL = cv2.cvtColor(imgL, cv2.COLOR_RGB2GRAY)
         imgL64 = encode_img(imgL)
 
-        imgR = cv2.cvtColor(imgR, cv2.COLOR_RGB2GRAY)
+        #imgR = cv2.cvtColor(imgR, cv2.COLOR_RGB2GRAY)
         imgR64 = encode_img(imgR)
         
         body = {"imgL":imgL64, "imgR":imgR64, "cam":self.cam}
