@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 import dlib
 import matplotlib
+import face_recognition
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -29,17 +30,34 @@ class ServerClass ():
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector()
 
-    def authenticate(self,imgL,imgR,cam):
+    def authenticate(self,imgL,imgR,cam,user_embedding):
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
         disparity_map = self.get_disparity(img1_rectified, img2_rectified)
 
         #returns imgs
-        facesL, facesR = self.get_faces(img1_rectified, img2_rectified) 
-        
-        #grab embedding 
-    
+        ret = self.get_faces(img1_rectified, img2_rectified) 
 
+        encodingsL = []
+        encodingsR = []
+        if ret is True:
+            for face_location in self.rectsL:
+                encoding = face_recognition.face_encodings(imgL, face_location)
+                encodingsL.append(encoding)
+            for face_location in self.rectsR:
+                encoding = face_recognition.face_encodings(imgR, face_location)
+                encodingsR.append(encoding)
+
+            # encodingsL and encodingR represent list of unorganized encodingsL
+            # if there are multiple faces - we don't yet know how faces translate across camL/camR
+            # We should be able to fetch a static pixel translation between cams based on matrix
+
+            # We'll need to have [(person1L, person1R), (person2L, person2R)]
+            print(encodingsL, encodingsR)
+
+            for encoding in encodingsL:
+                ret = face_recognition.compare_faces([user_embedding], encoding)
+    
         """
         plt.imshow(disparity_map, cmap='gray')
         plt.title('Disparity Map')
@@ -68,7 +86,24 @@ class ServerClass ():
 
         return img1_rectified,img2_rectified
 
-    def get_faces(self, frameL, frameR):
+    def get_faces(self, frameL, frameR) -> bool:
+
+        """
+
+        TODO - verify face coords belong to same person  
+        
+        passes images to dlibs face recognition  
+        returns true if faces are detected in both images
+
+        """
+
+        self.rectsL = face_recognition.face_locations(frameL)
+        self.rectsR = face_recognition.face_locations(frameR)
+
+        if self.rectsL and self.rectsR:
+            return True
+        
+        """
         self.rectsL = self.detector(frameL)
         self.rectsR = self.detector(frameR)
 
@@ -87,8 +122,8 @@ class ServerClass ():
             face = frameR[y:y+h, x:x+w]
             facesR.append(face)
             #frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
-
-        return (facesL, facesR)
+        """
+        return False 
 
     def get_disparity(self,img1_rectified,img2_rectified):
         # ------------------------------------------------------------

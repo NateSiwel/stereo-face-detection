@@ -29,11 +29,20 @@ def list_to_numpy(data):
     return data
 
 server = ServerClass()
+
+#Backend logic that authenticates image of user 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
     print('request received')
     if request.headers.get('API-Key') != API_KEY:
         return make_response(jsonify({'error': 'Unauthorized'}), 401)
+
+    #fetch user_emebdding from a db, to pass to server.authenticate
+    user_embedding = []
+    if user_embedding is None:
+        #Instance where user_embedding isn't found in database
+        return make_response(jsonify({'error': 'Complete setup process'}))
+
     data = request.json
 
     imgL = data['imgL']
@@ -48,7 +57,7 @@ def authenticate():
     if imgL is not None and imgR is not None and cam is not None:
         print('Rectifying Image')
         #server.authenticate()
-        res = server.authenticate(imgL,imgR,cam=cam)
+        res = server.authenticate(imgL,imgR,cam=cam,user_embedding=user_embedding)
         print(res)
 
         return make_response(jsonify({'message':'Success!'}), 200)
