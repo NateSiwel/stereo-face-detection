@@ -45,12 +45,21 @@ class Extract():
             frameR = self.frameR
 
         self.rectsL = self.detector(frameL)
+        if not self.rectsL:
+            return False
         self.rectsR = self.detector(frameR)
 
+        if self.rectsL and self.rectsR:
+            return True
+
+        """
         boxesL = [convert_and_trim_bb(self.frameL, r) for r in self.rectsL]
         boxesR = [convert_and_trim_bb(self.frameR, r) for r in self.rectsR]
 
         return (boxesL, boxesR)
+        """
+
+        return False
 
     def get_keypoints(self, imgL, imgR):
         self.kpL, self.desL = self.sift.detectAndCompute(imgL, None)
@@ -170,8 +179,9 @@ if __name__ == "__main__":
         grayL, grayR  = cv2.cvtColor(frameL, cv2.COLOR_RGB2GRAY), cv2.cvtColor(frameR, cv2.COLOR_RGB2GRAY)
         # apply rectification 
 
-        res = client.authenticate(frameL, frameR)
-        print(res)
+        if cams.get_faces(frameL, frameR):
+            res = client.authenticate(frameL, frameR)
+            print(res)
 
         """
         img1_rectified = cv2.remap(frameL, map1x, map1y, cv2.INTER_LINEAR)
@@ -180,7 +190,9 @@ if __name__ == "__main__":
         cv2.imshow('img1', img1_rectified)
         cv2.imshow('img2', img2_rectified)
         """
-
+        
+        cv2.imshow('frameL', frameL)
+        
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
