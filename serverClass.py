@@ -62,8 +62,6 @@ class ServerClass ():
         self.auth_model.eval()
         self.padding_percentage = .2
 
-
-
     def authenticate(self,imgL,imgR,cam,user_embedding):
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
@@ -86,12 +84,10 @@ class ServerClass ():
             #encodingsL = [enc for enc in encodingsL if face_recognition.compare_faces([user_embedding], enc)[0]]
 
             matches = []
-            print(len(encodingsL), len(encodingsR))
             for idxL, encL in enumerate(encodingsL):
                 distances = face_recognition.face_distance(encodingsR, encL)
                 min_distance = min(distances)
                 idxR = distances.tolist().index(min_distance)
-                print(min_distance)
                 
                 if min_distance < 0.6:
                     matches.append((idxL, idxR))
@@ -153,13 +149,8 @@ class ServerClass ():
                     if pred:
                         # embedding authenticity has been verified by auth_model
                         return True
-    
-        """
-        plt.imshow(disparity_map, cmap='gray')
-        plt.title('Disparity Map')
-        plt.colorbar()
-        plt.show()
-        """
+                    else:
+                        print('Invalid embedding!')
 
         return False 
 

@@ -40,7 +40,6 @@ data_array = []
 #Backend logic that authenticates image of user 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
-    print('request received')
     if request.headers.get('API-Key') != API_KEY:
         return make_response(jsonify({'error': 'Unauthorized'}), 401)
 
@@ -76,8 +75,6 @@ def authenticate():
     cam = list_to_numpy(cam)
 
     if imgL is not None and imgR is not None and cam is not None:
-        print('Passing to server.authenticate')
-        #server.authenticate()
         res = server.authenticate(imgL,imgR,cam=cam,user_embedding=user_embedding)
         if res:
             return make_response(jsonify({'message':'Auth successful'}), 200)
