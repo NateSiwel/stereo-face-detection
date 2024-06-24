@@ -7,6 +7,9 @@ import numpy as np
 import base64
 import cv2
 from flask import jsonify
+import pickle
+from picamera2 import Picamera2
+import dlib
 load_dotenv()
 
 server_ip = os.getenv('server_ip')
@@ -26,10 +29,52 @@ def numpy_to_list(data):
         return {key: numpy_to_list(value) for key, value in data.items()}
     return data
 
+#Add function to calibrate camera
 class ClientClass():
-    def __init__(self, cam):
-        self.cam = cam
-        self.cam = numpy_to_list(cam)
+    def __init__(self):
+
+        self.detector = dlib.get_frontal_face_detector()
+        self.camL = Picamera2(0)
+        self.camR = Picamera2(1)
+
+        configL = self.camL.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'})
+        configR = self.camR.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'})
+
+        self.camL.configure(configL)
+
+        self.camR.configure(configR)
+
+        self.camL.start()
+        self.camR.start()
+
+        self.frameL = None
+        self.frameR = None
+
+        with open('calibration/cams.pkl', 'rb') as file:
+                self.cam = pickle.load(file)
+                self.cam = numpy_to_list(self.cam)
+
+    def get_frames(self):
+        self.frameL = self.camL.capture_array()
+        self.frameR = self.camR.capture_array()
+
+        return self.frameL, self.frameR
+
+    def get_faces(self, frameL=None, frameR=None):
+        if frameL is None:
+            frameL = self.frameL
+        if frameR is None:
+            frameR = self.frameR
+
+        self.rectsL = self.detector(frameL)
+        if not self.rectsL:
+            return False
+        self.rectsR = self.detector(frameR)
+
+        if self.rectsL and self.rectsR:
+            return True
+
+        return False
 
     def authenticate(self, imgL, imgR):
         self.imgL, self.imgR = imgL, imgR
@@ -49,3 +94,19 @@ class ClientClass():
             message = json['message']
             return message 
         return "Invalid Request"
+
+    def destroy(self):
+        self.camL.stop()
+        self.camR.stop()
+
+
+if __name__ == "__main__":
+
+    cams = ClientClass()
+
+    while True:
+        frameL, frameR = cams.get_frames()
+
+        if cams.get_faces(frameL, frameR):
+            res = cams.authenticate(frameL, frameR)
+            print(res)
