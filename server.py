@@ -79,9 +79,10 @@ def authenticate():
         print('Passing to server.authenticate')
         #server.authenticate()
         res = server.authenticate(imgL,imgR,cam=cam,user_embedding=user_embedding)
-        print(res)
-
-        return make_response(jsonify({'message':f'{res}!'}), 200)
+        if res:
+            return make_response(jsonify({'message':'Auth successful'}), 200)
+        else:
+            return make_response(jsonify({'error':'Authentication Failed'}), 401)
 
     return make_response(jsonify({'error': 'Invalid Request'}), 400)
 

@@ -90,18 +90,21 @@ class ClientClass():
         response = requests.post(server_url+'/authenticate', headers=headers, json=body, verify=False)
         status_code = response.status_code
         if status_code == 200:
+            #Face authenticated
             json = response.json()
             message = json['message']
-            return message 
-        return "Invalid Request"
+            #unlock method here
+        else:
+            #invalid face 
+            json = response.json()
+            message = json['error']
+        return message
 
     def destroy(self):
         self.camL.stop()
         self.camR.stop()
 
-
 if __name__ == "__main__":
-
     cams = ClientClass()
 
     while True:
