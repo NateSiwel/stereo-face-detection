@@ -7,6 +7,12 @@ import face_recognition
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+import torchvision.transforms as transforms
+
 def convert_and_trim_bb(image, rect):
 	# extract the starting and ending (x, y)-coordinates of the
 	# bounding box
@@ -26,49 +32,127 @@ def convert_and_trim_bb(image, rect):
 	# return our bounding box coordinates
 	return (startX, startY, w, h)
 
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
+        self.act1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.act2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2)
+        self.fc1 = nn.Linear(32 * 56 * 56, 128)
+        self.act3 = nn.ReLU()
+        self.fc2 = nn.Linear(128, 2)
+
+    def forward(self, x):
+        x = self.pool1(self.act1(self.conv1(x)))
+        x = self.pool2(self.act2(self.conv2(x)))
+        x = torch.flatten(x, 1) 
+        x = self.act3(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
 class ServerClass ():
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.auth_model = SimpleCNN().to(self.device)
+        self.auth_model.load_state_dict(torch.load('auth.pth'))
+        self.auth_model.eval()
+        self.padding_percentage = .2
+
+
 
     def authenticate(self,imgL,imgR,cam,user_embedding):
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
-        disparity_map = self.get_disparity(img1_rectified, img2_rectified)
 
-        #returns imgs
-        ret = self.get_faces(img1_rectified, img2_rectified) 
+        rectsL = face_recognition.face_locations(img1_rectified)
+        rectsR = face_recognition.face_locations(img2_rectified)
 
-        if ret is True:
+        if rectsL and rectsR:
 
-            print(self.rectsL)
-            encodingsL = face_recognition.face_encodings(img1_rectified, self.rectsL)
+            encodingsL = face_recognition.face_encodings(img1_rectified, rectsL)
+            encodingsR = face_recognition.face_encodings(img2_rectified, rectsR)
 
-            encodingsR = face_recognition.face_encodings(img2_rectified, self.rectsR)
-
-            # encodingsL and encodingR represent list of unorganized encodingsL
+            # encodingsL and encodingR represent list of unorganized encodings
             # if there are multiple faces - we don't yet know how faces translate across camL/camR
             # We should be able to fetch a static pixel translation between cams based on matrix
 
             # We'll need to have [(person1L, person1R), (person2L, person2R)]
 
-            for encoding in encodingsL:
-                ret = face_recognition.compare_faces([user_embedding], encoding)
+            # remove encodings from encodingsL that don't match user - we don't want to waste time w/ them
+            #encodingsL = [enc for enc in encodingsL if face_recognition.compare_faces([user_embedding], enc)[0]]
 
             matches = []
+            print(len(encodingsL), len(encodingsR))
             for idxL, encL in enumerate(encodingsL):
-                distances = face_recognition.face_distance(encodingsR, encL[0])
+                distances = face_recognition.face_distance(encodingsR, encL)
                 min_distance = min(distances)
                 idxR = distances.tolist().index(min_distance)
+                print(min_distance)
                 
                 if min_distance < 0.6:
                     matches.append((idxL, idxR))
 
             # matched_pairs = [(personEnc1L, personEnc1R), (personEnc2L, personEnc2R)]
-            matched_pairs = [(encodingsL[i], encodingsR[j]) for i, j in matches]
+            matched_pairs = [(encodingsL[i], encodingsR[j], rectsL[i]) for i, j in matches]
 
-            print(len(matched_pairs))
+            for embL,embR,rectL in matched_pairs:
+                if face_recognition.compare_faces([user_embedding], embL) and face_recognition.compare_faces([user_embedding], embR):
+                    # embedding belongs to user - calculate disparity_map and authenticate embedding validity
+                    print('Face belongs to user - verifying authenticity')
 
-            return True
+                    disparity_map = self.get_disparity(
+                        img1_rectified=img1_rectified, 
+                        img2_rectified=img2_rectified, 
+                        min_disp=-100, 
+                        max_disp=100, 
+                        block_size=1, 
+                        uniquenessRatio=0, 
+                        speckleWindowSize=0, 
+                        speckleRange=1, 
+                        disp12MaxDiff=0
+                    )
+
+                    #crop 224x224 of face 
+
+                    height, width = disparity_map.shape[:2]
+
+                    top,right,bottom,left = rectL
+
+                    # Calculate dynamic padding based on the size of the face
+                    pad_w = int((right - left) * self.padding_percentage)
+                    pad_h = int((bottom - top) * self.padding_percentage)
+                    
+                    # Apply padding and ensure indices are within the image bounds
+                    padded_top = max(top - pad_h, 0)
+                    padded_bottom = min(bottom + pad_h, height)
+                    padded_left = max(left - pad_w, 0)
+                    padded_right = min(right + pad_w, width)
+                    
+                    # Extract the face region with padding
+                    face_region = disparity_map[padded_top:padded_bottom, padded_left:padded_right]
+                    face_normal = img1_rectified[padded_top:padded_bottom, padded_left:padded_right]
+
+                    face_region_resized = cv2.resize(face_region, (224,224), interpolation=cv2.INTER_AREA)
+                    face_normal_resized = cv2.resize(face_normal, (224,224), interpolation=cv2.INTER_AREA)
+                    
+                    #prep map for model input
+                    disparity_tensor = torch.tensor(face_region_resized, dtype=torch.float32).unsqueeze(0)
+                    disparity_tensor = disparity_tensor.unsqueeze(1)
+                    disparity_tensor = disparity_tensor.to(self.device) 
+
+                    with torch.no_grad():
+                        output = self.auth_model(disparity_tensor)
+
+                    probabilities = torch.nn.functional.softmax(output, dim=1)
+                    pred = torch.argmax(probabilities, dim=1)
+
+                    if pred:
+                        # embedding authenticity has been verified by auth_model
+                        return True
     
         """
         plt.imshow(disparity_map, cmap='gray')
@@ -80,6 +164,8 @@ class ServerClass ():
         return False 
 
     def rectify_frames(self,frameL,frameR,cam):
+        self.h,self.w = frameL.shape[:2]
+
         mtx1 = cam['mtxL']
         dist1 = cam['distL']
         mtx2 = cam['mtxR']
@@ -98,46 +184,8 @@ class ServerClass ():
 
         return img1_rectified,img2_rectified
 
-    def get_faces(self, frameL, frameR) -> bool:
-
-        """
-
-        TODO - verify face coords belong to same person  
-        
-        passes images to dlibs face recognition  
-        returns true if faces are detected in both images
-
-        """
-
-        self.rectsL = face_recognition.face_locations(frameL)
-        self.rectsR = face_recognition.face_locations(frameR)
-
-        if self.rectsL and self.rectsR:
-            return True
-        
-        """
-        self.rectsL = self.detector(frameL)
-        self.rectsR = self.detector(frameR)
-
-        boxesL = [convert_and_trim_bb(frameL, r) for r in self.rectsL]
-        boxesR = [convert_and_trim_bb(frameR, r) for r in self.rectsR]
-
-        # Process detected faces from each cam
-        #Grab face images if necessary
-        facesL = []
-        for (x, y, w, h) in boxesL:
-            face = frameL[y:y+h, x:x+w]
-            facesL.append(face)
-            #frameL = cv2.rectangle(img1_rectified, (x,y), (x+w,y+h), (0,255,0))
-        facesR = []
-        for (x, y, w, h) in boxesR:
-            face = frameR[y:y+h, x:x+w]
-            facesR.append(face)
-            #frameR = cv2.rectangle(img2_rectified, (x,y), (x+w,y+h), (0,255,0))
-        """
-        return False 
-
-    def get_disparity(self,img1_rectified,img2_rectified):
+    def get_disparity(self, img1_rectified, img2_rectified, min_disp=0, max_disp=128, block_size=11, 
+                  uniquenessRatio=5, speckleWindowSize=200, speckleRange=2, disp12MaxDiff=0):
         # ------------------------------------------------------------
         # CALCULATE DISPARITY (DEPTH MAP)
         # Adapted from: https://github.com/opencv/opencv/blob/master/samples/python/stereo_match.py
@@ -146,13 +194,14 @@ class ServerClass ():
         # StereoSGBM Parameter explanations:
         # https://docs.opencv.org/4.5.0/d2/d85/classcv_1_1StereoSGBM.html
 
+        """
         # Matched block size. It must be an odd number >=1 . Normally, it should be somewhere in the 3..11 range.
         block_size = 11
-        min_disp = -128
+        #min_disp = -128
+        min_disp = 0 
         max_disp = 128
         # Maximum disparity minus minimum disparity. The value is always greater than zero.
         # In the current implementation, this parameter must be divisible by 16.
-        num_disp = max_disp - min_disp
         # Margin in percentage by which the best (minimum) computed cost function value should "win" the second best value to consider the found match correct.
         # Normally, a value within the 5-15 range is good enough
         uniquenessRatio = 5
@@ -164,6 +213,9 @@ class ServerClass ():
         # Normally, 1 or 2 is good enough.
         speckleRange = 2
         disp12MaxDiff = 0
+        """
+
+        num_disp = max_disp - min_disp
 
         stereo = cv2.StereoSGBM_create(
             minDisparity=min_disp,

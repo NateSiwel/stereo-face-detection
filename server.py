@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import json
 import base64
+import pickle
 
 app = Flask(__name__)
 API_KEY = '123456'
@@ -16,6 +17,10 @@ def decode_img(base64_image):
     return image
 
 def encode_img(image_array):
+    """
+    Was previosuly receiving images in GRAY to save data, 
+    but face_recognition requires RGB
+    """
     _, buffer = cv2.imencode('.jpg', image_array)
     base64_image = base64.b64encode(buffer).decode('utf-8')
     return base64_image
@@ -30,6 +35,8 @@ def list_to_numpy(data):
 
 server = ServerClass()
 
+counter = 0
+data_array = []
 #Backend logic that authenticates image of user 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
@@ -38,12 +45,26 @@ def authenticate():
         return make_response(jsonify({'error': 'Unauthorized'}), 401)
 
     #fetch user_emebdding from a db, to pass to server.authenticate
-    user_embedding = () 
+    user_embedding = np.array([0]) 
     if user_embedding is None:
         #Instance where user_embedding isn't found in database
         return make_response(jsonify({'error': 'Complete setup process'}))
 
     data = request.json
+
+    """
+    # remove this later
+    global counter 
+    global data_array
+    counter += 1
+    if counter > 40:
+        with open('test_data.pickle', 'wb') as handle:
+            pickle.dump(data_array, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        return make_response(jsonify({'message':'successfully saved data!'}), 200)
+    else:
+        data_array.append(data)
+        return make_response(jsonify({'message':f'looping - counter @ {counter}!'}), 200)
+    """
 
     imgL = data['imgL']
     imgR = data['imgR'] 
@@ -55,12 +76,12 @@ def authenticate():
     cam = list_to_numpy(cam)
 
     if imgL is not None and imgR is not None and cam is not None:
-        print('Rectifying Image')
+        print('Passing to server.authenticate')
         #server.authenticate()
         res = server.authenticate(imgL,imgR,cam=cam,user_embedding=user_embedding)
         print(res)
 
-        return make_response(jsonify({'message':'Success!'}), 200)
+        return make_response(jsonify({'message':f'{res}!'}), 200)
 
     return make_response(jsonify({'error': 'Invalid Request'}), 400)
 

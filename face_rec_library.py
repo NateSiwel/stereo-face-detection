@@ -1,3 +1,4 @@
+from cv2.gapi import RGB2Gray
 import face_recognition
 import cv2
 
@@ -18,6 +19,7 @@ while True:
     ret, frame = cam.read()
 
     face_locations = face_recognition.face_locations(frame, model='cnn')
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     for face in face_locations:
       y1,x2,y2,x1 = face
       current_face_encoding = face_recognition.face_encodings(frame, face_locations)[0]

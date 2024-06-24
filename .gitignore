@@ -4,3 +4,4 @@ __pycache__/
 ssl/*
 .env
 recognition/
+test_data.pickle
