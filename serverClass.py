@@ -62,7 +62,7 @@ class ServerClass ():
         self.auth_model.eval()
         self.padding_percentage = .2
 
-    def authenticate(self,imgL,imgR,cam,user_embedding):
+    def authenticate(self,imgL,imgR,cam,user_embeddings):
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
 
@@ -96,9 +96,8 @@ class ServerClass ():
             matched_pairs = [(encodingsL[i], encodingsR[j], rectsL[i]) for i, j in matches]
 
             for embL,embR,rectL in matched_pairs:
-                if face_recognition.compare_faces([user_embedding], embL) and face_recognition.compare_faces([user_embedding], embR):
+                if face_recognition.compare_faces(user_embeddings, embL)[0] and face_recognition.compare_faces(user_embeddings, embR)[0]:
                     # embedding belongs to user - calculate disparity_map and authenticate embedding validity
-                    print('Face belongs to user - verifying authenticity')
 
                     disparity_map = self.get_disparity(
                         img1_rectified=img1_rectified, 
@@ -150,7 +149,7 @@ class ServerClass ():
                         # embedding authenticity has been verified by auth_model
                         return True
                     else:
-                        print('Invalid embedding!')
+                        print('Embedding belongs to user - but is invalid!')
 
         return False 
 
