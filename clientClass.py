@@ -53,8 +53,11 @@ class ClientClass():
                 self.cam = pickle.load(file)
                 self.cam = numpy_to_list(self.cam)
 
-        with open('ssl/key.pickle', 'rb') as handle:
-            self.key = pickle.load(handle)
+        try:
+            with open('ssl/key.pickle', 'rb') as handle:
+                self.key = pickle.load(handle)
+        except Exception as e:
+            self.key = None
 
     def log_in(self):
 
@@ -70,7 +73,7 @@ class ClientClass():
 
         headers = {"Content-Type": 'application/json'}
         
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, verify=False)
         
         # Check the response status code
         if response.status_code == 200:
@@ -132,6 +135,9 @@ class ClientClass():
             #unlock method here
         else:
             #invalid face 
+            if status_code == 422:
+                self.log_in()
+                return "Invalid API Key" 
             json = response.json()
             message = json['error']
         return message
