@@ -137,7 +137,6 @@ def authenticate():
 
     embeddings = current_user.embeddings
     user_embeddings = [embedding.embedding for embedding in embeddings]
-    print(user_embeddings)
 
     #fetch user_emebdding from db, to pass to server.authenticate
     if not user_embeddings:
@@ -172,7 +171,7 @@ def authenticate():
 
     cam = list_to_numpy(cam)
 
-    if imgL and imgR and cam:
+    if imgL is not None and imgR is not None and cam is not None:
         res = server.authenticate(imgL,imgR,cam=cam,user_embeddings=user_embeddings)
         if res:
             return make_response(jsonify({'message':'Auth successful'}), 200)
