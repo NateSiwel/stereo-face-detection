@@ -53,7 +53,7 @@ class ClientClass():
                 self.cam = pickle.load(file)
                 self.cam = numpy_to_list(self.cam)
 
-        with open('key.pickle', 'rb') as handle:
+        with open('ssl/key.pickle', 'rb') as handle:
             self.key = pickle.load(handle)
 
     def log_in(self):
@@ -78,6 +78,8 @@ class ClientClass():
             access_token = response.json().get('access_token')
             print("Login successful. Access Token:", access_token)
             self.key = access_token
+            with open('ssl/key.pickle', 'wb') as handle:
+                pickle.dump(access_token, handle, protocol=pickle.HIGHEST_PROTOCOL)
             return access_token
         else:
             # If credentials are invalid or any other error, print the error message
