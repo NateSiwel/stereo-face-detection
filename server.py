@@ -5,9 +5,10 @@ import cv2
 import base64
 import pickle
 from flask_sqlalchemy import SQLAlchemy
-from models import User
+from models import User, Embedding
 from config import app,db
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+import face_recognition
 
 def decode_img(base64_image):
     image_data = base64.b64decode(base64_image)
@@ -101,19 +102,24 @@ def add_embedding():
 
     imgL = data.get('imgL')
     imgR = data.get('imgR') 
-    cam = data.get('cam')
+    name = data.get('name')
 
     imgL = decode_img(imgL)
     imgR = decode_img(imgR)
 
-    cam = list_to_numpy(cam)
 
-    if imgL and imgR and cam:
-        res = server.authenticate(imgL,imgR,cam=cam,user_embeddings=user_embeddings)
-        if res:
-            return make_response(jsonify({'message':'Embedding stored'}), 201)
+    if imgL and imgR:
+        encoding = face_recognition.face_encodings(imgL)
+        if encoding:
+            if len(encoding) == 1:
+                new_embedding = Embedding(user_id=current_user_id,name=name,embedding=encoding) 
+                db.session.add(new_embedding)
+                db.session.commit()
+                return make_response(jsonify({'message':'Success! Embedding stored'}), 201)
+            else:
+                return make_response(jsonify({'error':'Multiple faces detected, please retry'}), 400)
         else:
-            return make_response(jsonify({'error':'Invalid Request'}), 400)
+            return make_response(jsonify({'error':'No face detected, please retry'}), 400)
 
     return make_response(jsonify({'error': 'Invalid Request'}), 400)
 

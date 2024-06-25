@@ -41,7 +41,6 @@ class ClientClass():
         configR = self.camR.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'})
 
         self.camL.configure(configL)
-
         self.camR.configure(configR)
 
         self.camL.start()
@@ -53,6 +52,38 @@ class ClientClass():
         with open('calibration/cams.pkl', 'rb') as file:
                 self.cam = pickle.load(file)
                 self.cam = numpy_to_list(self.cam)
+
+        with open('key.pickle', 'rb') as handle:
+            self.key = pickle.load(handle)
+
+    def log_in(self):
+
+        url = f"{server_url}/log_in"
+        
+        username = input("enter username: ")
+        password = input("enter password: ")
+
+        data = {
+            "username": username,
+            "password": password
+        }
+
+        headers = {"Content-Type": 'application/json'}
+        
+        response = requests.post(url, headers=headers, json=data)
+        
+        # Check the response status code
+        if response.status_code == 200:
+            # If credentials are valid, retrieve and return the access token
+            access_token = response.json().get('access_token')
+            print("Login successful. Access Token:", access_token)
+            self.key = access_token
+            return access_token
+        else:
+            # If credentials are invalid or any other error, print the error message
+            error_message = response.json().get('error', 'An error occurred during login')
+            print(f"Login failed: {error_message}")
+            return None
 
     def get_frames(self):
         self.frameL = self.camL.capture_array()
@@ -78,7 +109,10 @@ class ClientClass():
 
     def authenticate(self, imgL, imgR):
         self.imgL, self.imgR = imgL, imgR
-        headers = {'API-Key': api_key, "Content-Type": 'application/json'}
+
+        headers = {"Content-Type": 'application/json',
+                    "Authorization": f"Bearer {self.key}"
+                   }
         #imgL = cv2.cvtColor(imgL, cv2.COLOR_RGB2GRAY)
         imgL64 = encode_img(imgL)
 
