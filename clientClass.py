@@ -58,6 +58,32 @@ class ClientClass():
                 self.key = pickle.load(handle)
         except Exception as e:
             self.key = None
+            self.invalid_key()
+
+    def sign_up(self):
+
+        url = f"{server_url}/log_in"
+         
+        username = input("enter username: ")
+        password = input("enter password: ")
+
+        payload = {
+            'username': username,
+            'password': password
+        }
+
+        response = requests.post(url, json=payload)
+
+        if response.status_code == 201:
+            print('User created successfully - please log in')
+            self.log_in()
+        elif response.status_code == 400:
+            print('Error: Missing username or password.')
+        elif response.status_code == 409:
+            print('Error: Username already exists.')
+        else:
+            print(f'Error: {response.status_code}')
+            print(response.json())
 
     def log_in(self):
 
@@ -77,7 +103,6 @@ class ClientClass():
         
         # Check the response status code
         if response.status_code == 200:
-            # If credentials are valid, retrieve and return the access token
             access_token = response.json().get('access_token')
             print("Login successful. Access Token:", access_token)
             self.key = access_token
@@ -85,10 +110,18 @@ class ClientClass():
                 pickle.dump(access_token, handle, protocol=pickle.HIGHEST_PROTOCOL)
             return access_token
         else:
-            # If credentials are invalid or any other error, print the error message
             error_message = response.json().get('error', 'An error occurred during login')
             print(f"Login failed: {error_message}")
             return None
+
+    def invalid_key(self):
+        self.key = None
+        while self.key is None:
+            ret = input("Would you like to 1) Sign up, or 2) Log In")
+            if ret == 1:
+                cams.sign_up()
+            if ret == 2:
+                cams.log_in()
 
     def get_frames(self):
         self.frameL = self.camL.capture_array()
@@ -135,10 +168,11 @@ class ClientClass():
             #unlock method here
         else:
             #invalid face 
-            if status_code == 422:
-                self.log_in()
-                return "Invalid API Key" 
             json = response.json()
+            if status_code == 401:
+                error = json['error']
+                if error == "unauthorized":
+                    self.invalid_key()
             message = json['error']
         return message
 

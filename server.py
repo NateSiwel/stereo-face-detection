@@ -133,7 +133,7 @@ def authenticate():
     current_user = User.query.get(current_user_id)
 
     if not current_user:
-        return make_response(jsonify({'error': 'Unauthorized'}), 401)
+        return make_response(jsonify({'error': 'unauthorized'}), 401)
 
     embeddings = current_user.embeddings
     user_embeddings = [embedding.embedding for embedding in embeddings]
