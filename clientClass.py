@@ -158,8 +158,10 @@ class ClientClass():
         imgR64 = encode_img(imgR)
         
         body = {"imgL":imgL64, "imgR":imgR64, "cam":self.cam}
-
-        response = requests.post(server_url+'/authenticate', headers=headers, json=body, verify=False)
+        try:
+            response = requests.post(server_url+'/authenticate', headers=headers, json=body, verify=False)
+        except requests.exceptions.ConnectionError as e:
+            return "Couldn't find server"
         status_code = response.status_code
         if status_code == 200:
             #Face authenticated
