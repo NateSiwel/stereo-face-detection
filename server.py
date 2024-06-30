@@ -59,7 +59,7 @@ def log_in():
     user = User.query.filter_by(username=username).first()
 
     if user and user.verify_password(password):
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=user.id, expires_delta=False)
         return jsonify(access_token=access_token), 200
     else:
         return jsonify({'msg': 'Invalid credentials'}), 401
