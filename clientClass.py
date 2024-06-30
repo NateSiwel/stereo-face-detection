@@ -20,8 +20,8 @@ api_key = '123456'
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def encode_img(image_array):
-    _, buffer = cv2.imencode('.jpg', image_array)
+def encode_img(image_array, quality=100):
+    _, buffer = cv2.imencode('.jpg', image_array, [int(cv2.IMWRITE_WEBP_QUALITY), quality])
     base64_image = base64.b64encode(buffer).decode('utf-8')
     return base64_image
 
