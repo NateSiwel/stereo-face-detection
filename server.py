@@ -7,7 +7,7 @@ import pickle
 from flask_sqlalchemy import SQLAlchemy
 from models import User, Embedding
 from config import app,db
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request
 import face_recognition
 
 def decode_img(base64_image):
@@ -54,7 +54,7 @@ def log_in():
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({'error': 'Missing username or password'}), 400
+        return jsonify({'msg': 'Missing username or password'}), 400
 
     user = User.query.filter_by(username=username).first()
 
@@ -62,7 +62,7 @@ def log_in():
         access_token = create_access_token(identity=user.id)
         return jsonify(access_token=access_token), 200
     else:
-        return jsonify({'error': 'Invalid credentials'}), 401
+        return jsonify({'msg': 'Invalid credentials'}), 401
 
 @app.route('/sign_up', methods=['POST'])
 def sign_up():
@@ -72,10 +72,10 @@ def sign_up():
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({'error': 'Missing username or password'}), 400
+        return jsonify({'msg': 'Missing username or password'}), 400
 
     if User.query.filter_by(username=username).first() is not None:
-        return jsonify({'error': 'Username already exists'}), 409
+        return jsonify({'msg': 'Username already exists'}), 409
 
     new_user = User(username=username)
     new_user.password = password
@@ -83,8 +83,7 @@ def sign_up():
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({'message': 'User created successfully'}), 201
-
+    return jsonify({'msg': 'User created successfully'}), 201
 
 @app.route('/add_embedding', methods=['POST'])
 @jwt_required()
@@ -93,12 +92,12 @@ def add_embedding():
     current_user = User.query.get(current_user_id)
 
     if not current_user:
-        return make_response(jsonify({'error': 'Unauthorized'}), 401)
+        return make_response(jsonify({'msg': 'Unauthorized'}), 401)
 
     data = request.get_json(silent=True)
 
     if not data:
-        return make_response(jsonify({'error': 'Invalid Request'}), 400)
+        return make_response(jsonify({'msg': 'Invalid Request'}), 400)
 
     imgL = data.get('imgL')
     imgR = data.get('imgR') 
@@ -115,13 +114,13 @@ def add_embedding():
                 new_embedding = Embedding(user_id=current_user_id,name=name,embedding=encoding) 
                 db.session.add(new_embedding)
                 db.session.commit()
-                return make_response(jsonify({'message':'Success! Embedding stored'}), 201)
+                return make_response(jsonify({'msg':'Success! Embedding stored'}), 201)
             else:
-                return make_response(jsonify({'error':'Multiple faces detected, please retry'}), 400)
+                return make_response(jsonify({'msg':'Multiple faces detected, please retry'}), 400)
         else:
-            return make_response(jsonify({'error':'No face detected, please retry'}), 400)
+            return make_response(jsonify({'msg':'No face detected, please retry'}), 400)
 
-    return make_response(jsonify({'error': 'Invalid Request'}), 400)
+    return make_response(jsonify({'msg': 'Invalid Request'}), 400)
 
 counter = 0
 data_array = []
@@ -133,7 +132,7 @@ def authenticate():
     current_user = User.query.get(current_user_id)
 
     if not current_user:
-        return make_response(jsonify({'error': 'unauthorized'}), 401)
+        return make_response(jsonify({'msg': 'unauthorized'}), 401)
 
     embeddings = current_user.embeddings
     user_embeddings = [embedding.embedding for embedding in embeddings]
@@ -141,7 +140,7 @@ def authenticate():
     #fetch user_emebdding from db, to pass to server.authenticate
     if not user_embeddings:
         #Instance where user_embedding isn't found in database
-        return make_response(jsonify({'error': 'Complete setup process'}))
+        return make_response(jsonify({'msg': 'Complete setup process'}))
 
     data = request.get_json(silent=True)
 
@@ -160,7 +159,7 @@ def authenticate():
     """
 
     if not data:
-        return make_response(jsonify({'error': 'Invalid Request'}), 400)
+        return make_response(jsonify({'msg': 'Invalid Request'}), 400)
 
     imgL = data.get('imgL')
     imgR = data.get('imgR') 
@@ -172,13 +171,14 @@ def authenticate():
     cam = list_to_numpy(cam)
 
     if imgL is not None and imgR is not None and cam is not None:
+        print(f"passing {current_user}'s request to auth")
         res = server.authenticate(imgL,imgR,cam=cam,user_embeddings=user_embeddings)
         if res:
-            return make_response(jsonify({'message':'Auth successful'}), 200)
+            return make_response(jsonify({'msg':'valid'}), 200)
         else:
-            return make_response(jsonify({'error':'Authentication Failed'}), 401)
+            return make_response(jsonify({'msg':'invalid'}), 200)
 
-    return make_response(jsonify({'error': 'Invalid Request'}), 400)
+    return make_response(jsonify({'msg': 'Invalid Request'}), 400)
 
 if __name__ == '__main__':
     with app.app_context():
