@@ -10,12 +10,15 @@ from flask import jsonify
 import pickle
 from picamera2 import Picamera2
 import dlib
+import urllib3
 load_dotenv()
 
 server_ip = os.getenv('server_ip')
 
 server_url = f'https://{server_ip}:5000'
 api_key = '123456'
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def encode_img(image_array):
     _, buffer = cv2.imencode('.jpg', image_array)
@@ -104,7 +107,7 @@ class ClientClass():
         # Check the response status code
         if response.status_code == 200:
             access_token = response.json().get('access_token')
-            print("Login successful. Access Token:", access_token)
+            print("Login successful.")
             self.key = access_token
             with open('ssl/key.pickle', 'wb') as handle:
                 pickle.dump(access_token, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -117,10 +120,10 @@ class ClientClass():
     def invalid_key(self):
         self.key = None
         while self.key is None:
-            ret = input("Would you like to 1) Sign up, or 2) Log In")
-            if ret == 1:
+            ret = input("Would you like to 1) Sign up, or 2) Log In\n")
+            if ret == '1':
                 cams.sign_up()
-            if ret == 2:
+            if ret == '2':
                 cams.log_in()
 
     def get_frames(self):
@@ -164,18 +167,18 @@ class ClientClass():
             return "Couldn't find server"
         status_code = response.status_code
         if status_code == 200:
-            #Face authenticated
             json = response.json()
-            message = json['message']
-            #unlock method here
+            message = json['msg']
+            valid = (message == "valid")
+            if valid:
+                #passed authentication 
+                passed = 1
         else:
-            #invalid face 
             json = response.json()
             if status_code == 401:
-                error = json['error']
-                if error == "unauthorized":
+                message = json['msg']
+                if message == "Token has expired":
                     self.invalid_key()
-            message = json['error']
         return message
 
     def destroy(self):
