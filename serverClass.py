@@ -6,12 +6,12 @@ import matplotlib
 import face_recognition
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import torchvision.transforms as transforms
+from concurrent.futures import ThreadPoolExecutor
 
 def convert_and_trim_bb(image, rect):
 	# extract the starting and ending (x, y)-coordinates of the
@@ -53,6 +53,9 @@ class SimpleCNN(nn.Module):
         x = self.fc2(x)
         return x
 
+def batch_face_encodings(image, rects):
+    return face_recognition.face_encodings(image, rects)
+
 class ServerClass ():
     def __init__(self):
         self.detector = dlib.get_frontal_face_detector()
@@ -63,16 +66,28 @@ class ServerClass ():
         self.padding_percentage = .2
 
     def authenticate(self,imgL,imgR,cam,user_embeddings):
+        start_time = time.time()
+
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
 
-        rectsL = face_recognition.face_locations(img1_rectified)
-        rectsR = face_recognition.face_locations(img2_rectified)
+        rects = face_recognition.batch_face_locations([img1_rectified,img2_rectified],number_of_times_to_upsample=1,batch_size=2)
+        rectsL, rectsR = rects[0], rects[1]
+
+        print("--- %s seconds ---" % (time.time() - start_time))
 
         if rectsL and rectsR:
 
-            encodingsL = face_recognition.face_encodings(img1_rectified, rectsL)
-            encodingsR = face_recognition.face_encodings(img2_rectified, rectsR)
+            #encodingsL = face_recognition.face_encodings(img1_rectified, rectsL)
+            #encodingsR = face_recognition.face_encodings(img2_rectified, rectsR)
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                encodingsL_future = executor.submit(batch_face_encodings, img1_rectified, rectsL)
+                encodingsR_future = executor.submit(batch_face_encodings, img2_rectified, rectsR)
+
+            encodingsL = encodingsL_future.result()
+            encodingsR = encodingsR_future.result()
+
 
             # encodingsL and encodingR represent list of unorganized encodings
             # if there are multiple faces - we don't yet know how faces translate across camL/camR
@@ -91,6 +106,7 @@ class ServerClass ():
                 
                 if min_distance < 0.6:
                     matches.append((idxL, idxR))
+
 
             # matched_pairs = [(personEnc1L, personEnc1R), (personEnc2L, personEnc2R)]
             matched_pairs = [(encodingsL[i], encodingsR[j], rectsL[i]) for i, j in matches]
@@ -142,15 +158,16 @@ class ServerClass ():
                     with torch.no_grad():
                         output = self.auth_model(disparity_tensor)
 
-                    probabilities = torch.nn.functional.softmax(output, dim=1)
-                    pred = torch.argmax(probabilities, dim=1)
+                        probabilities = torch.nn.functional.softmax(output, dim=1)
+                        pred = torch.argmax(probabilities, dim=1)
 
-                    if pred:
-                        # embedding authenticity has been verified by auth_model
-                        return True
-                    else:
-                        print('Embedding belongs to user - but is invalid!')
+                        if pred:
+                            # embedding authenticity has been verified by auth_model
+                            return True
+                        else:
+                            print('Embedding belongs to user - but is invalid!')
 
+        print('no faces detected')
         return False 
 
     def rectify_frames(self,frameL,frameR,cam):

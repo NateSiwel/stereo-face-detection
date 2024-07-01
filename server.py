@@ -9,26 +9,15 @@ from models import User, Embedding
 from config import app,db
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request
 import face_recognition
+import time
 
 def decode_img(base64_image):
     image_data = base64.b64decode(base64_image)
     image_array = np.frombuffer(image_data, np.uint8)
-    image = cv2.imdecode(image_array, cv2.COLOR_BGR2RGB)
+    image_bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
-    return image
-
-def encode_img(image_array):
-    """
-    Was previosuly receiving images in GRAY to save data, 
-    but face_recognition requires RGB
-    """
-    try:
-        _, buffer = cv2.imencode('.jpg', image_array)
-        base64_image = base64.b64encode(buffer).decode('utf-8')
-        return base64_image
-    except Exception as e:
-        print(e)
-        return None
+    return image_rgb
 
 # Convert lists back to numpy arrays
 def list_to_numpy(data):
@@ -170,9 +159,14 @@ def authenticate():
 
     cam = list_to_numpy(cam)
 
+    # time to recieve data from raspi is about .25 seconds 
+
+    start_time = time.time()
+    #time for auth logic it about 1.75 seconds -- way too slow
     if imgL is not None and imgR is not None and cam is not None:
         print(f"passing {current_user}'s request to auth")
         res = server.authenticate(imgL,imgR,cam=cam,user_embeddings=user_embeddings)
+        #print("--- %s seconds ---" % (time.time() - start_time))
         if res:
             return make_response(jsonify({'msg':'valid'}), 200)
         else:
