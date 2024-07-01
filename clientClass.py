@@ -16,12 +16,12 @@ load_dotenv()
 server_ip = os.getenv('server_ip')
 
 server_url = f'https://{server_ip}:5000'
-api_key = '123456'
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def encode_img(image_array, quality=100):
-    _, buffer = cv2.imencode('.jpg', image_array, [int(cv2.IMWRITE_WEBP_QUALITY), quality])
+    image_bgr = cv2.cvtColor(image_array,cv2.COLOR_RGB2BGR)
+    _, buffer = cv2.imencode('.jpg', image_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     base64_image = base64.b64encode(buffer).decode('utf-8')
     return base64_image
 
@@ -36,15 +36,19 @@ def numpy_to_list(data):
 class ClientClass():
     def __init__(self):
 
+        #self.detector = dlib.cnn_face_detection_model_v1('models/mmod_human_face_detector.dat')
         self.detector = dlib.get_frontal_face_detector()
         self.camL = Picamera2(0)
         self.camR = Picamera2(1)
 
-        configL = self.camL.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'})
-        configR = self.camR.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'})
+        config = self.camL.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'}) # for some reason per the documentation - 
+        #configR = self.camR.create_video_configuration(main={"size":(1296, 972), 'format': 'RGB888'}) # BGR888 returns RGB and RGB888 returns BGR
 
-        self.camL.configure(configL)
-        self.camR.configure(configR)
+        #was having a problem with low brightness - not sure if this will cause problems in other light enviroments
+        config['controls']['ExposureValue'] = 8.0
+
+        self.camL.configure(config)
+        self.camR.configure(config)
 
         self.camL.start()
         self.camR.start()
@@ -175,8 +179,8 @@ class ClientClass():
                 passed = 1
         else:
             json = response.json()
+            message = json['msg']
             if status_code == 401:
-                message = json['msg']
                 if message == "Token has expired":
                     self.invalid_key()
         return message
