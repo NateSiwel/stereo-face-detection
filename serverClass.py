@@ -66,30 +66,20 @@ class ServerClass ():
         self.padding_percentage = .2
 
     def authenticate(self,imgL,imgR,cam,user_embeddings):
-        start_time = time.time()
 
         self.h,self.w = imgL.shape[:2] 
         img1_rectified, img2_rectified = self.rectify_frames(imgL,imgR,cam)
 
-        rects = face_recognition.batch_face_locations([img1_rectified,img2_rectified],number_of_times_to_upsample=1,batch_size=2)
+        rects = face_recognition.batch_face_locations([img1_rectified,img2_rectified],number_of_times_to_upsample=0,batch_size=2)
         rectsL, rectsR = rects[0], rects[1]
 
         print(len(rectsL), len(rectsR))
 
-        print("--- %s seconds ---" % (time.time() - start_time))
 
         if rectsL and rectsR:
 
-            #encodingsL = face_recognition.face_encodings(img1_rectified, rectsL)
-            #encodingsR = face_recognition.face_encodings(img2_rectified, rectsR)
-
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                encodingsL_future = executor.submit(batch_face_encodings, img1_rectified, rectsL)
-                encodingsR_future = executor.submit(batch_face_encodings, img2_rectified, rectsR)
-
-            encodingsL = encodingsL_future.result()
-            encodingsR = encodingsR_future.result()
-
+            encodingsL = face_recognition.face_encodings(img1_rectified, rectsL)
+            encodingsR = face_recognition.face_encodings(img2_rectified, rectsR)
 
             # encodingsL and encodingR represent list of unorganized encodings
             # if there are multiple faces - we don't yet know how faces translate across camL/camR
@@ -117,6 +107,8 @@ class ServerClass ():
                 if face_recognition.compare_faces(user_embeddings, embL)[0] and face_recognition.compare_faces(user_embeddings, embR)[0]:
                     # embedding belongs to user - calculate disparity_map and authenticate embedding validity
 
+                    # get_disparity takes about .6 seconds
+                    # see if block size can be increased w/o accuracy falloff
                     disparity_map = self.get_disparity(
                         img1_rectified=img1_rectified, 
                         img2_rectified=img2_rectified, 
