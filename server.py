@@ -89,17 +89,16 @@ def add_embedding():
         return make_response(jsonify({'msg': 'Invalid Request'}), 400)
 
     imgL = data.get('imgL')
-    imgR = data.get('imgR') 
     name = data.get('name')
 
     imgL = decode_img(imgL)
-    imgR = decode_img(imgR)
 
-
-    if imgL and imgR:
+    if imgL is not None:
         encoding = face_recognition.face_encodings(imgL)
-        if encoding:
+        if encoding is not None:
+            print(encoding)
             if len(encoding) == 1:
+                encoding = encoding[0].tolist()
                 new_embedding = Embedding(user_id=current_user_id,name=name,embedding=encoding) 
                 db.session.add(new_embedding)
                 db.session.commit()

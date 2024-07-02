@@ -74,6 +74,8 @@ class ServerClass ():
         rects = face_recognition.batch_face_locations([img1_rectified,img2_rectified],number_of_times_to_upsample=1,batch_size=2)
         rectsL, rectsR = rects[0], rects[1]
 
+        print(len(rectsL), len(rectsR))
+
         print("--- %s seconds ---" % (time.time() - start_time))
 
         if rectsL and rectsR:
