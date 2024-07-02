@@ -20,8 +20,9 @@ server_url = f'https://{server_ip}:5000'
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def encode_img(image_array, quality=100):
-    image_bgr = cv2.cvtColor(image_array,cv2.COLOR_RGB2BGR)
-    _, buffer = cv2.imencode('.jpg', image_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    #image_bgr = cv2.cvtColor(image_array,cv2.COLOR_RGB2BGR)
+    image_bgr = image_array
+    _, buffer = cv2.imencode('.jpeg', image_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     base64_image = base64.b64encode(buffer).decode('utf-8')
     return base64_image
 
@@ -185,16 +186,59 @@ class ClientClass():
                     self.invalid_key()
         return message
 
+    def add_embedding(self):
+        while True:
+            name = input("Enter a name for the face: ")
+            print("Press q when face is positioned squarely in front of camera: ")
+
+            while True:
+                self.frameL, self.frameR = cams.get_frames()
+
+                cv2.imshow('Face', self.frameL)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    cv2.destroyAllWindows()
+                    break
+
+            headers = {"Content-Type": 'application/json',
+                        "Authorization": f"Bearer {self.key}"
+                       }
+            imgL64 = encode_img(self.frameL)
+            
+            body = {"imgL":imgL64, "name":name}
+            try:
+                response = requests.post(server_url+'/add_embedding', headers=headers, json=body, verify=False)
+            except requests.exceptions.ConnectionError as e:
+                return "Couldn't find server"
+            status_code = response.status_code
+            if status_code == 201:
+                json = response.json()
+                message = json['msg']
+            else:
+                json = response.json()
+                message = json['msg']
+                if status_code == 401:
+                    if message == "Token has expired":
+                        self.invalid_key()
+                        self.add_embedding(self.imgL, self.imgR)
+            return message
+
     def destroy(self):
         self.camL.stop()
         self.camR.stop()
 
 if __name__ == "__main__":
+    import sys
     cams = ClientClass()
+    if len(sys.argv)<2:
 
-    while True:
-        frameL, frameR = cams.get_frames()
+        while True:
+            frameL, frameR = cams.get_frames()
 
-        if cams.get_faces(frameL, frameR):
-            res = cams.authenticate(frameL, frameR)
+            if cams.get_faces(frameL, frameR):
+                res = cams.authenticate(frameL, frameR)
+                print(res)
+    else:
+        arg1 = sys.argv[1]
+        if arg1 == "add_embedding":
+            res = cams.add_embedding()
             print(res)
